@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  connection: local
+  vars:
+    test: true
+  tasks:
+    - name: "Include niall-byrne.flower_generator"
+      ansible.builtin.include_role:
+        name: "niall-byrne.flower_generator"

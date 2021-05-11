@@ -1,0 +1,72 @@
+name: flower_generator-pushes
+
+# Workflow Secrets:
+# SLACK_WEBHOOK              (Required, for slack notifications...)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+
+  push:
+    runs-on: ubuntu-20.04
+    steps:
+
+    - name: Setup Environment
+      run: |
+        echo "WEBHOOK_URL=${WEBHOOK_URL}" >> $GITHUB_ENV
+        echo "PROJECT_NAME=flower_generator" >> $GITHUB_ENV
+        echo "USERNAME=niall-byrne" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Install Requirements
+      if: contains(github.ref, '/tags/v')
+      run: |
+        pip install poetry
+        poetry install
+
+    - name: Run Linter
+      if: contains(github.ref, '/tags/v')
+      run: |
+        poetry run molecule lint
+    - name: Run docker1 Scenario
+      run: |
+        poetry run molecule test -s docker1
+
+    - name: Prepare Release Content
+      if: contains(github.ref, '/tags/v')
+      run: |
+        NEWTAG=${GITHUB_REF#refs/tags/}
+        echo "NEWTAG=${NEWTAG}" >> $GITHUB_ENV
+        echo "{}" > package.json
+    - name: Generate Changelog
+      if: contains(github.ref, '/tags/v')
+      uses: scottbrenner/generate-changelog-action@1.0.3
+      id: Changelog
+      env:
+        REPO: ${{ github.repository }}
+    - name: Create Release
+      if: contains(github.ref, '/tags/v')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.NEWTAG }}
+        release_name: Release ${{ env.NEWTAG }}
+        body: |
+          ${{ steps.Changelog.outputs.changelog }}
+        draft: true
+        prerelease: false
+    - name: Production -- Report Success
+      if: contains(github.ref, '/tags/v')
+      run: |
+        ./.github/notifications.sh "${PROJECT_NAME}:${GITHUB_REF#refs/tags/}" "automated release has been created: https://github.com/${USERNAME}/${PROJECT_NAME}/releases"
+    - name: Production -- Report Failure
+      if: failure() && contains(github.ref, '/tags/v')
+      run: |
+        ./.github/notifications.sh "${PROJECT_NAME}:${GITHUB_REF#refs/tags/}" "automated release generation failed!"

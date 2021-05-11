@@ -1,0 +1,55 @@
+name: flower_generator-releases
+
+# Workflow Secrets:
+# SLACK_WEBHOOK              (Required, for slack notifications...)
+# GALAXY_API_KEY             (Required, for Ansible Galaxy Import...)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      TAG:
+        description: 'Tag to Deploy'
+        required: true
+        default: ''
+
+jobs:
+  release:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Setup Environment
+        run: |
+          echo "WEBHOOK_URL=${WEBHOOK_URL}" >> $GITHUB_ENV
+          echo "PROJECT_NAME=flower_generator" >> $GITHUB_ENV
+          echo "USERNAME=niall-byrne" >> $GITHUB_ENV
+
+      - name: Code Checkout (workflow dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.TAG  }}
+      - name: Code Checkout (published release)
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install Requirements
+        run: |
+          pip install poetry
+          poetry install
+      - name: Trigger Ansible Galaxy Import
+        run: |
+           ansible-galaxy role import ${USERNAME} ${PROJECT_NAME} --token ${API_KEY}
+        env:
+          API_KEY: ${{ secrets.GALAXY_API_KEY }}
+      - name: Production -- Report Success
+        run: |
+          ./.github/notifications.sh "${PROJECT_NAME}:${GITHUB_REF#refs/tags/}" "automated galaxy import has been completed!"
+      - name: Production -- Report Failure
+        if: failure()
+        run: |
+          ./.github/notifications.sh "${PROJECT_NAME}:${GITHUB_REF#refs/tags/}" "automated galaxy import has failed!"
