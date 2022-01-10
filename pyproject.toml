@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "flower-generator"
+version = "0.0.1"
+description = "Not the baking kind."
+authors = ["Niall Byrne <niall@niallbyrne.ca>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8.0,<4.0"
+ansible = "^5.1.0"
+
+[tool.poetry.dev-dependencies]
+ansible-lint = "^5.3.1"
+commitizen = "^2.20.3"
+molecule = {extras = ["docker"], version = "^3.5.2"}
+molecule-docker = "^1.1.0"
+# Workaround for https://github.com/ansible-community/ansible-lint/issues/1795
+rich = "^10.16.2"
+yamllint = "^1.26.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
