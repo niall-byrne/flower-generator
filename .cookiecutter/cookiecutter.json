@@ -1,0 +1,16 @@
+{
+    "_GITHUB_ACTION_MARKDOWN_LINK_CHECK": "gaurav-nelson/github-action-markdown-link-check@1.0.13",
+    "_GITHUB_GENERATE_CHANGELOG_ACTION": "scottbrenner/generate-changelog-action@v1.3.3",
+    "_GITHUB_GITLEAKS_ACTION": "zricethezav/gitleaks-action@v1.6.0",
+    "_GITHUB_PUSH_ACTION": "ad-m/github-push-action@v0.6.0",
+    "_template": "template/",
+    "author": "Niall Byrne",
+    "company": "Shared Vision Solutions",
+    "description": "Not the baking kind.",
+    "email": "niall@niallbyrne.ca",
+    "galaxy_namespace_slug": "niall_byrne",
+    "galaxy_role_slug": "flower_generator",
+    "github_handle": "niall-byrne",
+    "project_name": "Flower Generator",
+    "project_slug": "flower-generator"
+}
