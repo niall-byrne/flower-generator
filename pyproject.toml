@@ -6,7 +6,7 @@ authors = ["Niall Byrne <niall@niallbyrne.ca>"]
 
 [tool.poetry.dependencies]
 python = ">=3.8.0,<4.0"
-ansible = "^5.2.0"
+ansible = "^6.0.0"
 
 [tool.poetry.dev-dependencies]
 ansible-compat = "!=2.1.0" # https://github.com/ansible-community/ansible-compat/issues/114
