@@ -1,0 +1,12 @@
+---
+- name: Converge
+  hosts: all
+  connection: local
+  vars:
+
+  tasks:
+    - name: Load Scenario Variables
+      include_vars: vars/main.yml
+    - name: "Include niall_byrne.flower_generator"
+      ansible.builtin.include_role:
+        name: "niall_byrne.flower_generator"
