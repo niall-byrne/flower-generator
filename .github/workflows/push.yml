@@ -1,0 +1,386 @@
+---
+name: flower-generator-push
+
+# Workflow Secrets:
+# SLACK_WEBHOOK              (Required, for slack notifications...)
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: "flower-generator"
+  USERNAME: "niall-byrne"
+  VERBOSE_NOTIFICATIONS: 0
+
+
+jobs:
+
+  _create_python_versions:
+
+    runs-on: ubuntu-latest
+    outputs:
+      python-versions: ${{ steps.create_matrix.outputs.python-versions }}
+
+    steps:
+      - name: Create Python Versions -- Set Configured Python Versions as Output
+        id: create_matrix
+        run: |
+          echo 'python-versions=["3.9"]' >> $GITHUB_OUTPUT
+
+  _start_notification:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Start -- Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Start -- Setup Environment
+        run: |
+          source ./.github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Start -- Report Job Status on Success
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: workflow has started!"
+
+      - name: Start -- Report Job Status on Failure
+        if: failure()
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":x: error reporting job status!"
+
+  _success_notification:
+    needs: [create_release]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Success -- Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Success -- Setup Environment
+        run: |
+          source .github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Success -- Report Job Status on Success
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: all checks were successful!"
+
+      - name: Success -- Report Job Status on Failure
+        if: failure()
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":x: error reporting job status!"
+
+
+  create_release:
+    needs: [_create_python_versions, _start_notification, molecule_test, molecule_lint, documentation_test, security_test, yaml_lint_test]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Release -- Branch Filter
+        id: branch_filter
+        run: |
+          MATCH="FALSE"
+          [[ "${{ github.event.ref }}" =~ ^refs/tags/[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]] && MATCH="TRUE"
+          [[ "${{ github.event.ref }}" == "refs/tags/0.0.0" ]] && MATCH="FALSE"
+          echo "MATCH=${MATCH}" >> $GITHUB_OUTPUT
+
+      - name: Release -- Checkout Repository
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Release -- Setup Environment
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        run: |
+          source ./.github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Create Release -- Install Poetry
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        run: |
+          source ./.github/scripts/poetry.sh
+
+      - name: Create Release -- Check 'pyproject.toml' Matches Tag
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        run: |
+          source ./.github/scripts/version.sh
+
+      - name: Create Release -- Generate Changelog
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        run:
+          source ./.github/scripts/changelog.sh
+
+      - name: Create Release -- Generate GitHub Release Draft
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        id: create_release
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const script = require('./.github/scripts/release.js')
+            await script({github, context, core})
+
+      - name: Create Release -- Report Job Status (Success)
+        if: steps.branch_filter.outputs.match == 'TRUE'
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: automated release has been created:\nhttps://github.com/${USERNAME}/${PROJECT_NAME}/releases"
+
+      - name: Release -- Report Job Status (Failure)
+        if: failure()
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":x: automated release generation failed!"
+
+  documentation_test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Documentation Test -- Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Documentation Test -- Setup Environment
+        run: |
+          source ./.github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Documentation Test -- Documentation Validation
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          config-file: './github/config/markdown.link.check.json'
+          use-quiet-mode: 'no'
+          use-verbose-mode: 'yes'
+
+      - name: Documentation Test -- Report Success
+        if: env.VERBOSE_NOTIFICATIONS == '1'
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: documentation test was successful!"
+
+      - name: Documentation Test -- Report Failure
+        if: failure()
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":x: documentation test has failed!"
+
+  molecule_lint:
+    needs: [_create_python_versions]
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ${{ fromJson(needs._create_python_versions.outputs.python-versions) }}
+
+    steps:
+
+      - name: Molecule Lint -- Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          path: "role"
+
+      - name: Molecule Lint -- Setup Environment
+        run: |
+          source ./role/.github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Molecule Lint -- Install Poetry
+        run: |
+          source ./role/.github/scripts/poetry.sh
+
+      - name: Molecule Lint -- Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Molecule Lint -- Initialize Cache Locations
+        run: |
+          mkdir -p ~/.cache/pypoetry/virtualenvs/
+          source ./role/.github/scripts/ansible_cache.sh  \
+            "$(pwd)/ansible_cache"                        \
+            ~/.cache
+
+      - name: Molecule Lint -- Mount Ansible Cache
+        uses: actions/cache@v3
+        with:
+          key: ansible-${{ hashFiles('./role/requirements.yml') }}-${{ env.CACHE_TTL }}
+          path: ansible_cache
+
+      - name: Molecule Lint -- Mount Poetry Cache
+        uses: actions/cache@v3
+        with:
+          key: poetry-${{ hashFiles('./role/pyproject.toml') }}-${{ runner.os }}-${{ env.CACHE_TTL }}
+          path: ~/.cache/pypoetry/virtualenvs/
+
+      - name: Molecule Lint -- Install Requirements
+        run: |
+          cd role
+          poetry install
+
+      - name: Molecule Lint -- Run Linter
+        run: |
+          cd role
+          poetry run molecule lint
+
+      - name: Molecule Lint -- Report Job Status (Success)
+        if: env.VERBOSE_NOTIFICATIONS == '1'
+        run: |
+          ./role/.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: molecule linting was successful!"
+
+      - name: Molecule Lint -- Report Job Status (Failure)
+        if: failure()
+        run: |
+          ./role/.github/scripts/notifications.sh "${NOTIFICATION}" ":x: molecule linting has failed!"
+
+  molecule_test:
+    needs: [_create_python_versions]
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ${{ fromJson(needs._create_python_versions.outputs.python-versions) }}
+
+    steps:
+      - name: Molecule Test -- Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          path: "role"
+
+      - name: Molecule Test -- Setup Environment
+        run: |
+          source ./role/.github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Molecule Test -- Install Poetry
+        run: |
+          source ./role/.github/scripts/poetry.sh
+
+      - name: Molecule Test -- Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Molecule Test -- Initialize Cache Locations
+        run: |
+          mkdir -p ~/.cache/pypoetry/virtualenvs/
+          source ./role/.github/scripts/ansible_cache.sh  \
+            "$(pwd)/ansible_cache"                        \
+            ~/.cache
+
+      - name: Molecule Test -- Mount Ansible Cache
+        uses: actions/cache@v3
+        with:
+          key: ansible-${{ hashFiles('./role/requirements.yml') }}-${{ env.CACHE_TTL }}
+          path: ansible_cache
+
+      - name: Molecule Test -- Mount Poetry Cache
+        uses: actions/cache@v3
+        with:
+          key: poetry-${{ hashFiles('./role/pyproject.toml') }}-${{ runner.os }}-${{ env.CACHE_TTL }}
+          path: ~/.cache/pypoetry/virtualenvs/
+
+      - name: Molecule Test -- Install Requirements
+        run: |
+          cd role
+          poetry install
+
+      - name: Molecule Test -- Run docker1 Scenario
+        run: |
+          cd role
+          poetry run molecule test -s docker1
+
+      - name: Molecule Test -- Report Job Status (Success)
+        if: env.VERBOSE_NOTIFICATIONS == '1'
+        run: |
+          ./role/.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: molecule test was successful!"
+
+      - name: Molecule Test -- Report Job Status (Failure)
+        if: failure()
+        run: |
+          ./role/.github/scripts/notifications.sh "${NOTIFICATION}" ":x: molecule test has failed!"
+
+  security_test:
+    needs: [_create_python_versions]
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: ${{ fromJson(needs._create_python_versions.outputs.python-versions) }}
+
+    steps:
+      - name: Security Test -- Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Security Test -- Setup Environment
+        run: |
+          source ./.github/scripts/setup.sh
+          source ./.github/scripts/pushed_commit_range.sh
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Security Test -- Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Security Test -- Run Trufflehog
+        uses: trufflesecurity/trufflehog@v3.28.0
+        with:
+          path: .
+          base: ${{ env.PUSHED_COMMIT_RANGE }}
+          head: ${{ env.BRANCH_OR_TAG }}
+
+      - name: Security Test -- Report Job Status on Success
+        if: env.VERBOSE_NOTIFICATIONS == '1'
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: security checks were successful!"
+
+      - name: Security Test -- Report Job Status on Failure
+        if: failure()
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":x: security checks failed!"
+
+  yaml_lint_test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Yaml Lint Test -- Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Yaml Lint Test -- Setup Environment
+        run: |
+          source ./.github/scripts/setup.sh
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Yaml Lint Test -- Lint Rendered GitHub Workflows
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          format: standard
+          file_or_dir: .github/workflows/
+          config_file: .yamllint.yml
+
+      - name: Yaml Lint Test -- Report Job Status (Success)
+        if: env.VERBOSE_NOTIFICATIONS == '1'
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":white_check_mark: workflow linting was successful!"
+
+      - name: Yaml Lint Test -- Report Job Status (Failure)
+        if: failure()
+        run: |
+          ./.github/scripts/notifications.sh "${NOTIFICATION}" ":x: workflow linting has failed!"
