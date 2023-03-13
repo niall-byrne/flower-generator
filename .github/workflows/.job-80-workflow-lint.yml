@@ -1,0 +1,48 @@
+---
+name: flower-generator-job-toml-lint
+
+on:
+  workflow_call:
+    inputs:
+      VERBOSITY:
+        description: "Manages the types of Slack notifications."
+        required: true
+        type: boolean
+    secrets:
+      SLACK_WEBHOOK:
+        description: "Optional, enables Slack notifications."
+        required: false
+
+jobs:
+
+  run_actionlint:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Workflow Lint -- Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Workflow Lint -- Setup Environment
+        run: |
+          source "./.github/scripts/workflow-setup-environment.sh"
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Workflow Lint -- Install Binary
+        run: |
+          bash <(curl "https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash")
+
+      - name: Workflow Lint -- Run Linter
+        run: |
+          ./actionlint -color
+
+      - name: Workflow Lint -- Report Job Status (Success)
+        if: inputs.VERBOSITY == true
+        run: |
+          "./.github/scripts/task-slack-notification.sh" "${NOTIFICATION}" ":white_check_mark: workflow linting was successful!"
+
+      - name: Workflow Lint -- Report Job Status (Failure)
+        if: failure()
+        run: |
+          "./.github/scripts/task-slack-notification.sh" "${NOTIFICATION}" ":x: workflow linting has failed!"

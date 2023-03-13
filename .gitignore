@@ -1,0 +1,6 @@
+*.retry
+.ansible
+.cache
+.idea
+.tool-versions
+poetry.lock
