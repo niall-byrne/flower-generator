@@ -1,0 +1,5 @@
+{
+  "SHFMT_OPTIONS": "-i 2 -ci -sr",
+  "SHELLCHECK_OPTIONS": "-e SC2317 -P SCRIPTDIR",
+  "CONTAINER": "ghcr.io/niall-byrne/cicd-tools:master"
+}

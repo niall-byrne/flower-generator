@@ -1,0 +1,34 @@
+---
+name: flower-generator-job-start-notification
+
+on:
+  workflow_call:
+    secrets:
+      SLACK_WEBHOOK:
+        description: "Optional, enables Slack notifications."
+        required: false
+
+jobs:
+
+  start_notification:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Start -- Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Start -- Setup Environment
+        run: |
+          source "./.github/scripts/workflow-setup-environment.sh"
+        env:
+          WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Start -- Report Job Status on Success
+        run: |
+          "./.github/scripts/task-slack-notification.sh" "${NOTIFICATION}" ":white_check_mark: workflow has started!"
+
+      - name: Start -- Report Job Status on Failure
+        if: failure()
+        run: |
+          "./.github/scripts/task-slack-notification.sh" "${NOTIFICATION}" ":x: error reporting job status!"

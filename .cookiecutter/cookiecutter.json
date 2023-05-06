@@ -1,0 +1,43 @@
+{
+    "*DO_NOT_MODIFY_THIS_FILE*": "This file is created to assist with upgrading to future versions of this template.",
+    "_BRANCH_NAME_BASE": "master",
+    "_BRANCH_NAME_DEVELOPMENT": "dev",
+    "_CONFIG_DEFAULT_SHELLCHECK_OPTIONS": "-e SC2317 -P SCRIPTDIR",
+    "_CONFIG_DEFAULT_SHFMT_OPTIONS": "-i 2 -ci -sr",
+    "_DOCKER_DEFAULT_CONTAINER": "ghcr.io/niall-byrne/cicd-tools:master",
+    "_GITHUB_ACTION_CACHE": "actions/cache@v3",
+    "_GITHUB_ACTION_CHECKOUT": "actions/checkout@v3",
+    "_GITHUB_ACTION_MARKDOWN_LINK_CHECK": "gaurav-nelson/github-action-markdown-link-check@v1",
+    "_GITHUB_ACTION_PYTHON": "actions/setup-python@v4",
+    "_GITHUB_ACTION_SCRIPT": "actions/github-script@v6",
+    "_GITHUB_ACTION_TRUFFLEHOG": "trufflesecurity/trufflehog@v3.28.0",
+    "_GITHUB_ACTION_YAMLLINT": "ibiqlik/action-yamllint@v3",
+    "_GITHUB_CI_ACTIONLINT_SCRIPT_URL": "https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash",
+    "_GITHUB_CI_DEFAULT_CONCURRENCY": 4,
+    "_GITHUB_CI_DEFAULT_MOLECULE_EXCLUDED_SCENARIOS_REGEX": "^default$|^noci-.*$",
+    "_GITHUB_CI_DEFAULT_MOLECULE_TEST_PLATFORMS": [
+        "ubuntu-latest"
+    ],
+    "_GITHUB_CI_DEFAULT_PYTHON_VERSIONS": [
+        "3.9"
+    ],
+    "_GITHUB_CI_DEFAULT_VERBOSE_NOTIFICATIONS": false,
+    "_copy_without_render": [
+        ".cicd-tools/boxes/bootstrap/libraries/environment.sh",
+        ".github/actions",
+        "scripts/*"
+    ],
+    "_output_dir": "/home/runner/work/ansible-workbench/ansible-workbench",
+    "_template": "https://github.com/niall-byrne/ansible-workbench.git",
+    "author": "Niall Byrne",
+    "company": "Shared Vision Solutions",
+    "description": "Not the baking kind.",
+    "email": "niall@niallbyrne.ca",
+    "galaxy_namespace_slug": "niall_byrne",
+    "galaxy_role_slug": "flower_generator",
+    "github_handle": "niall-byrne",
+    "optional_toml_linting": "false",
+    "optional_workflow_linting": "false",
+    "project_name": "Flower Generator",
+    "project_slug": "flower-generator"
+}
