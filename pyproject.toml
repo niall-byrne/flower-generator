@@ -30,4 +30,4 @@ version = '^6.12.2'
 
 [tool.poetry.dev-dependencies.molecule]
 extras = ['docker']
-version = '^4.0.4'
+version = '^5.0.1'
