@@ -1,0 +1,135 @@
+---
+name: flower-generator-github-workflow-push
+
+# For further details please consult the documentation here:
+# https://github.com/niall-byrne/ansible-workbench
+
+# Begin Cookiecutter Template Content
+
+on:
+  push:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+#  secrets:
+#    SLACK_WEBHOOK:
+#      description: "Optional, enables Slack notifications."
+#      required: false
+
+jobs:
+
+  configuration:
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-00-generic-json_file.yml@master
+    with:
+      JSON_FILE_PATH: ".github/config/workflows/workflow-push.json"
+
+  scenarios:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-00-generic-molecule_scenarios.yml@master
+    with:
+      MOLECULE_EXCLUSION_REGEX: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_molecule_excluded_scenarios_regex }}
+      MOLECULE_SCENARIO_PATH: "molecule"
+
+  start:
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-00-generic-notification.yml@master
+    with:
+      NOTIFICATION_EMOJI: ":vertical_traffic_light:"
+      NOTIFICATION_MESSAGE: "workflow has started!"
+
+  security:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-10-generic-security.yml@master
+    with:
+      EXTRA_BINARY_ARGS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_trufflehog_extra_scan_args }}
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  documentation:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-30-generic-documentation.yml@master
+    with:
+      CONFIG_FILE: ".github/config/actions/gaurav-nelson-github-action-markdown-link-check.json"
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  ansible_lint:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-40-poetry-ansible-lint.yml@master
+    with:
+      CONCURRENCY: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_concurrency_limit }}
+      PYTHON_VERSIONS: ${{ toJSON(fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_python_versions) }}
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  molecule_test:
+    needs: [configuration, scenarios]
+    secrets: inherit
+    strategy:
+      fail-fast: true
+      matrix:
+        scenario: ${{ fromJSON(needs.scenarios.outputs.SCENARIOS) }}
+        platform: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_molecule_test_platforms }}
+      max-parallel: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_concurrency_limit }}
+    uses: niall-byrne/cicd-tools/.github/workflows/job-40-poetry-molecule-role.yml@master
+    with:
+      CONCURRENCY: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_concurrency_limit }}
+      MOLECULE_COMMAND: "test"
+      MOLECULE_SCENARIO: ${{ matrix.scenario }}
+      PLATFORM: ${{ matrix.platform }}
+      PYTHON_VERSIONS: ${{ toJSON(fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_python_versions) }}
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  pre-commit_hooks:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-50-poetry-basic_precommit_hooks.yml@master
+    with:
+      CHECK_TOML: false
+      CHECK_WORKFLOW: false
+      CONCURRENCY: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_concurrency_limit }}
+      PYTHON_VERSIONS: ${{ toJSON(fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_python_versions) }}
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  commit_lint:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-80-poetry-commit_lint.yml@master
+    with:
+      CONCURRENCY: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_concurrency_limit }}
+      LINTED_REV_RANGE: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_commitizen_rev_range }}
+      PYTHON_VERSIONS: ${{ toJSON(fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_python_versions) }}
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  yaml_lint:
+    needs: [configuration]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-80-poetry-precommit_linter.yml@master
+    with:
+      CONCURRENCY: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_concurrency_limit }}
+      PRECOMMIT_HOOK_ID: "yamllint"
+      PRECOMMIT_HOOK_NAME: "YAML Linting"
+      PYTHON_VERSIONS: ${{ toJSON(fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_python_versions) }}
+      VERBOSE_NOTIFICATIONS: ${{ fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_verbose_notifications }}
+
+  create_release:
+    permissions:
+      contents: write
+    needs: [ansible_lint, configuration, commit_lint, documentation, molecule_test, pre-commit_hooks, security, start, yaml_lint]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-99-poetry-create_release.yml@master
+    with:
+      JSON_APPENDED_CONTENT: ${{ toJSON(fromJSON(needs.configuration.outputs.JSON_FILE_DATA).ci_extra_release_content) }}
+
+  finish:
+    needs: [create_release]
+    secrets: inherit
+    uses: niall-byrne/cicd-tools/.github/workflows/job-00-generic-notification.yml@master
+    with:
+      NOTIFICATION_EMOJI: ":checkered_flag:"
+      NOTIFICATION_MESSAGE: "workflow has completed successfully!"
+
+# End Cookiecutter Template Content

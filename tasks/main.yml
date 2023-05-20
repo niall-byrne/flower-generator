@@ -1,0 +1,11 @@
+---
+# tasks file for flower-generator
+
+- name: Placeholder Task
+  ansible.builtin.debug:
+    msg: "Your dedication and hard work goes here."
+
+- name: Placeholder Task With Priviledge
+  become: true
+  ansible.builtin.command: whoami
+  changed_when: false
