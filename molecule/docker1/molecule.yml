@@ -1,0 +1,18 @@
+---
+dependency:
+  name: galaxy
+  options:
+    role-file: requirements.yml
+    requirements-file: requirements.yml
+    timeout: "120"
+    force: false
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: fedora:latest
+    pre_build_image: true
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

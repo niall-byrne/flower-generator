@@ -1,0 +1,4 @@
+---
+- name: Default test for niall_byrne.flower_generator
+  hosts: localhost
+  remote_user: root
