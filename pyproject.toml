@@ -22,7 +22,7 @@ python = '^3.9,<4.0'
 [tool.poetry.group]
 [tool.poetry.group.dev]
 [tool.poetry.group.dev.dependencies]
-ansible = '^7.5.0'
+ansible = '^8.0.0'
 commitizen = '^3.0.0'
 pre-commit = '^3.1.1'
 
