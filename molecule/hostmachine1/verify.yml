@@ -1,0 +1,10 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Load Scenario Variables
+      ansible.builtin.include_vars: vars/main.yml
+    - name: PlaceHolder Task
+      ansible.builtin.debug:
+        msg: "Verification Script."

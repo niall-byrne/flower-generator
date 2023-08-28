@@ -1,0 +1,68 @@
+---
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+repos:
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.22.0
+    hooks:
+      - id: check-jsonschema
+        name: check-cookiecutter-schema
+        files: "^\\.cookiecutter/cookiecutter\\.json$"
+        args:
+          - "--schemafile"
+          - ".cicd-tools/boxes/bootstrap/schemas/cookiecutter.json"
+        stages: [commit]
+      - id: check-jsonschema
+        name: check-github-workflow-push-schema
+        files: "^\\.github/config/workflows/workflow-push.json$"
+        args:
+          - "--schemafile"
+          - ".github/config/schemas/workflows/workflow-push.json"
+        stages: [commit]
+      - id: check-jsonschema
+        name: check-github-workflow-publish-to-galaxy-schema
+        files: "^\\.github/config/workflows/workflow-publish-to-galaxy.json$"
+        args:
+          - "--schemafile"
+          - ".github/config/schemas/workflows/workflow-publish-to-galaxy.json"
+        stages: [commit]
+      - id: check-metaschema
+        name: check-github-workflow-metaschemas
+        files: "^\\.github/config/schemas/.*\\.json$"
+        stages: [commit]
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v2.42.1
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.29.0
+    hooks:
+      - id: yamllint
+        args:
+          - "-c"
+          - "./.yamllint.yml"
+        stages: [commit]
+  - repo: https://github.com/cicd-tools-org/pre-commit.git
+    rev: 0.1.0
+    hooks:
+      - id: format-shell
+        args:
+          - "-w"
+          - "--indent=2"
+          - "-ci"
+          - "-sr"
+      - id: lint-ansible
+      - id: lint-markdown
+        args:
+          - "-c"
+          - ".markdownlint.yml"
+      - id: lint-shell
+        args:
+          - "--color=always"
+          - "--source-path=SCRIPTDIR"
+          - "--exclude=SC2317"
+          - "-x"
+      - id: spelling-commit-message
+      - id: spelling-markdown
