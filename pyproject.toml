@@ -32,7 +32,7 @@ markers = "platform_system != 'Windows'"
 version = '^6.12.2'
 
 [tool.poetry.group.dev.dependencies.molecule]
-version = '^5.0.0'
+version = '^6.0.2'
 
 [tool.poetry.group.dev.dependencies.molecule-plugins]
 extras = ['docker']
